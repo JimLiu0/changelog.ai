@@ -1,13 +1,11 @@
 'use client'
 import { useState } from "react";
-import Breadcrumb from './components/Breadcrumb';
+import Breadcrumb, { steps, StepId } from './components/Breadcrumb';
 import AddRepo from './components/steps/AddRepo';
 import ChangelogAction from './components/steps/ChangelogAction';
 import ChooseCommits from './components/steps/ChooseCommits';
 import ReviewDiff from './components/steps/ReviewDiff';
 import CreateChangelog from './components/steps/CreateChangelog';
-
-type Step = 'add-repo' | 'changelog-action' | 'choose-commits' | 'review-diff' | 'create-changelog' | 'published';
 
 interface RepoData {
   full_name: string;
@@ -42,6 +40,13 @@ interface Diff {
   }>;
 }
 
+interface Tag {
+  name: string;
+  commit: {
+    sha: string;
+  };
+}
+
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
   const [error, setError] = useState("");
@@ -51,11 +56,47 @@ export default function Home() {
   const [selectedBranch, setSelectedBranch] = useState("main");
   const [page, setPage] = useState(1);
   const [diffs, setDiffs] = useState<Record<string, Diff>>({});
-  const [tags, setTags] = useState<any[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [shownDiffs, setShownDiffs] = useState<Record<string, boolean>>({});
   const [searchText, setSearchText] = useState("");
   const [selectedCommits, setSelectedCommits] = useState<string[]>([]);
-  const [currentStep, setCurrentStep] = useState<Step>('add-repo');
+  const [currentStep, setCurrentStep] = useState<StepId>('add-repo');
+  const [hasNextPage, setHasNextPage] = useState(true);
+
+  const fetchTagsAndReleases = async (owner: string, repo: string) => {
+    try {
+      // Fetch tags
+      const tagsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`);
+      if (!tagsRes.ok) throw new Error("Failed to fetch tags");
+      const tagsData = await tagsRes.json();
+
+      // Fetch releases
+      const releasesRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`);
+      if (!releasesRes.ok) throw new Error("Failed to fetch releases");
+      const releasesData = await releasesRes.json();
+
+      // Combine tags and releases, removing duplicates
+      const allTags = [...tagsData];
+      releasesData.forEach((release: any) => {
+        if (!allTags.some(tag => tag.name === release.tag_name)) {
+          allTags.push({
+            name: release.tag_name,
+            commit: {
+              sha: release.target_commitish
+            }
+          });
+        }
+      });
+
+      setTags(allTags);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
+    }
+  };
 
   const handleRepoSelected = async (data: RepoData) => {
     setRepoData(data);
@@ -68,11 +109,8 @@ export default function Home() {
       const branchesData = await branchesRes.json();
       setBranches(branchesData);
 
-      // Fetch tags
-      const tagsRes = await fetch(`https://api.github.com/repos/${data.owner.login}/${data.name}/tags`);
-      if (!tagsRes.ok) throw new Error("Failed to fetch tags.");
-      const tagsData = await tagsRes.json();
-      setTags(tagsData);
+      // Fetch tags and releases
+      await fetchTagsAndReleases(data.owner.login, data.name);
 
       // Fetch commits
       await fetchCommits(data.owner.login, data.name, data.default_branch || "main", 1);
@@ -94,6 +132,9 @@ export default function Home() {
       const commitsData = await commitsRes.json();
       setCommits(commitsData);
       setPage(pageNum);
+      // Check if there's a next page by looking at the Link header
+      const linkHeader = commitsRes.headers.get('Link');
+      setHasNextPage(linkHeader?.includes('rel="next"') ?? false);
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -125,6 +166,36 @@ export default function Home() {
     setCurrentStep('choose-commits');
   };
 
+  const handlePageChange = async (newPage: number) => {
+    if (repoData) {
+      await fetchCommits(repoData.owner.login, repoData.name, selectedBranch, newPage);
+    }
+  };
+
+  const handleStepChange = (stepId: StepId) => {
+    // Only allow navigation to completed steps or current step
+    const currentIndex = steps.findIndex(step => step.id === currentStep);
+    const targetIndex = steps.findIndex(step => step.id === stepId);
+    
+    if (targetIndex <= currentIndex) {
+      // Reset state based on which step we're going back to
+      if (stepId === 'add-repo') {
+        setRepoData(null);
+        setBranches([]);
+        setCommits([]);
+        setSelectedBranch('main');
+        setSelectedCommits([]);
+        setTags([]);
+      } else if (stepId === 'changelog-action') {
+        setSelectedCommits([]);
+      } else if (stepId === 'choose-commits') {
+        // Keep selected commits but reset any later state
+      }
+      
+      setCurrentStep(stepId);
+    }
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 'add-repo':
@@ -148,12 +219,16 @@ export default function Home() {
             repoData={repoData}
             selectedBranch={selectedBranch}
             commits={commits}
+            tags={tags}
             selectedCommits={selectedCommits}
             searchText={searchText}
             onSearchTextChange={setSearchText}
             onCommitsSelected={handleCommitsSelected}
             onError={setError}
             onNextStep={handleNextStep}
+            onPageChange={handlePageChange}
+            currentPage={page}
+            hasNextPage={hasNextPage}
           />
         );
       
@@ -196,7 +271,10 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start w-full max-w-4xl">
-        <Breadcrumb currentStep={currentStep} />
+        <Breadcrumb 
+          currentStep={currentStep} 
+          onStepClick={handleStepChange}
+        />
         
         {error && (
           <div className="w-full bg-red-50 p-4 rounded-lg">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import DiffView from '../DiffView';
 
 interface Diff {
   files: Array<{
@@ -80,36 +81,7 @@ export default function ReviewDiff({ repoData, selectedCommits, commits, onError
   return (
     <div className="w-full">
       <h2 className="text-xl font-bold mb-4">Review Changes</h2>
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <p className="mb-4">
-          <strong>Files Changed:</strong> {diff.files.length}
-        </p>
-        {diff.files.map((file) => (
-          <div key={file.filename} className="mb-6">
-            <h3 className="font-semibold mb-2">{file.filename}</h3>
-            {file.patch ? (
-              <pre className="bg-gray-800 text-white p-4 rounded overflow-x-auto">
-                {file.patch.split('\n').map((line, idx) => (
-                  <div
-                    key={idx}
-                    className={`${
-                      line.startsWith('+')
-                        ? 'text-green-400'
-                        : line.startsWith('-')
-                        ? 'text-red-400'
-                        : 'text-gray-400'
-                    }`}
-                  >
-                    {line}
-                  </div>
-                ))}
-              </pre>
-            ) : (
-              <p className="text-gray-500">No changes in this file</p>
-            )}
-          </div>
-        ))}
-      </div>
+      <DiffView files={diff.files} initiallyExpanded={true} />
     </div>
   );
 } 
