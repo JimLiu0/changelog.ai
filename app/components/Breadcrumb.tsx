@@ -6,11 +6,11 @@ import {
   GitCommit, 
   FileDiff, 
   FileText, 
-  CheckCircle2,
+  CheckCircle,
   PlusCircle
 } from 'lucide-react';
 
-export type StepId = 'add-repo' | 'changelog-action' | 'choose-commits' | 'review-diff' | 'create-changelog' | 'published';
+export type StepId = 'add-repo' | 'choose-branch' | 'choose-commits' | 'review-diff' | 'create-changelog' | 'published';
 
 export type Step = {
   id: StepId;
@@ -20,11 +20,11 @@ export type Step = {
 
 export const steps: Step[] = [
   { id: 'add-repo', name: 'Add a repo', icon: <PlusCircle className="w-5 h-5" /> },
-  { id: 'changelog-action', name: 'Changelog action', icon: <GitBranch className="w-5 h-5" /> },
+  { id: 'choose-branch', name: 'Choose branch', icon: <GitBranch className="w-5 h-5" /> },
   { id: 'choose-commits', name: 'Choose commits', icon: <GitCommit className="w-5 h-5" /> },
   { id: 'review-diff', name: 'Review diff', icon: <FileDiff className="w-5 h-5" /> },
   { id: 'create-changelog', name: 'Create changelog', icon: <FileText className="w-5 h-5" /> },
-  { id: 'published', name: 'Published', icon: <CheckCircle2 className="w-5 h-5" /> },
+  { id: 'published', name: 'Published', icon: <CheckCircle className="w-5 h-5" /> }
 ];
 
 interface BreadcrumbProps {

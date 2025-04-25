@@ -78,7 +78,7 @@ export default function ChangelogAction({
           className="mt-4 w-full border px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-400"
           disabled={isLoading}
         >
-          {isLoading ? 'Loading...' : 'Create New Changelog'}
+          {isLoading ? 'Loading...' : 'Choose Branch'}
         </button>
       </div>
     </div>

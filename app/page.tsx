@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Breadcrumb, { steps, StepId } from './components/Breadcrumb';
 import AddRepo from './components/steps/AddRepo';
-import ChangelogAction from './components/steps/ChangelogAction';
+import ChooseBranch from './components/steps/ChooseBranch';
 import ChooseCommits from './components/steps/ChooseCommits';
 import ReviewDiff from './components/steps/ReviewDiff';
 import CreateChangelog from './components/steps/CreateChangelog';
@@ -115,7 +115,7 @@ export default function Home() {
       // Fetch commits
       await fetchCommits(data.owner.login, data.name, data.default_branch || "main", 1);
       
-      setCurrentStep('changelog-action');
+      setCurrentStep('choose-branch');
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -156,8 +156,12 @@ export default function Home() {
   };
 
   const handleNextStep = () => {
-    if (selectedCommits.length === 2) {
+    if (currentStep === 'choose-commits' && selectedCommits.length === 2) {
       setCurrentStep('review-diff');
+    } else if (currentStep === 'review-diff') {
+      setCurrentStep('create-changelog');
+    } else if (currentStep === 'create-changelog') {
+      setCurrentStep('published');
     }
   };
 
@@ -186,7 +190,7 @@ export default function Home() {
         setSelectedBranch('main');
         setSelectedCommits([]);
         setTags([]);
-      } else if (stepId === 'changelog-action') {
+      } else if (stepId === 'choose-branch') {
         setSelectedCommits([]);
       } else if (stepId === 'choose-commits') {
         // Keep selected commits but reset any later state
@@ -201,9 +205,9 @@ export default function Home() {
       case 'add-repo':
         return <AddRepo onRepoSelected={handleRepoSelected} onError={setError} />;
       
-      case 'changelog-action':
+      case 'choose-branch':
         return repoData && (
-          <ChangelogAction
+          <ChooseBranch
             repoData={repoData}
             branches={branches}
             selectedBranch={selectedBranch}
@@ -238,7 +242,10 @@ export default function Home() {
             repoData={repoData}
             selectedCommits={selectedCommits}
             commits={commits}
+            tags={tags}
+            selectedBranch={selectedBranch}
             onError={setError}
+            onNextStep={handleNextStep}
           />
         );
       
@@ -249,6 +256,7 @@ export default function Home() {
             selectedCommits={selectedCommits}
             commits={commits}
             onChangelogCreated={handleCreateChangelog}
+            onNextStep={handleNextStep}
             onError={setError}
           />
         );
