@@ -1,5 +1,5 @@
 'use client';
-
+import OpenAI from 'openai';
 import { useState } from 'react';
 
 interface Commit {
@@ -42,12 +42,53 @@ export default function CreateChangelog({
   const handleGenerateWithAI = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement AI generation
-      // For now, just set placeholder content
-      setTitle('Generated Changelog Title');
-      setContent('Generated changelog content will appear here...');
+      const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+      if (!apiKey) {
+        console.log(apiKey);
+        onError('OpenAI API key is missing');
+        setIsLoading(false);
+        return;
+      }
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+
+      const selectedCommitObjects = commits.filter((commit) =>
+        selectedCommits.includes(commit.sha)
+      );
+
+      const commitMessagesAndDiffs = selectedCommitObjects
+        .map((commit) => `Commit: ${commit.commit.message} (${commit.sha.slice(0, 7)})\nDiff:\n${commit.diff || 'No diff available.'}`)
+        .join('\n\n');
+
+      const prompt = `
+      You are an AI assistant tasked with generating a changelog.
+      Here are the selected commit messages and their diffs:
+      ${commitMessagesAndDiffs}
+
+      Please create a professional changelog title and detailed content based on these commits.
+      `;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      console.log(response)
+
+      const aiOutput = response.choices[0].message?.content || '';
+      const [generatedTitle, ...generatedContentParts] = aiOutput.split('\n\n');
+      const generatedContent = generatedContentParts.join('\n\n');
+
+      setTitle(generatedTitle.trim());
+      setContent(generatedContent.trim());
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to generate changelog');
+      if (err.response?.status === 401) {
+        onError('OpenAI API key is invalid or misconfigured.');
+      } else {
+        onError(err instanceof Error ? err.message : 'Failed to generate changelog');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import DiffView from '../DiffView';
 
 interface RepoData {
@@ -663,9 +663,8 @@ export default function ChooseCommits({
                 const diffKey = index < commits.length - 1 ? `${commits[index + 1].sha}...${commit.sha}` : '';
                 const tag = getTagForCommit(commit.sha);
                 return (
-                  <>
+                  <Fragment key={commit.sha}>
                     <tr
-                      key={commit.sha}
                       className={`border-b ${getRowClassName(commit)}`}
                       onClick={() => isCommitClickable(commit) && handleCommitClick(commit)}
                     >
@@ -716,7 +715,7 @@ export default function ChooseCommits({
                         </tr>
                       ) : null;
                     })()}
-                  </>
+                  </Fragment>
                 );
               })}
           </tbody>
